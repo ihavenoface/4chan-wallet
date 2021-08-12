@@ -1,0 +1,26 @@
+export default {
+    id: "fourchan-wallet",
+    name: "4chan Wallet",
+    version: "0.1.0",
+    description: "A crypto wallet for 4chan.",
+    author: "noface",
+    grant: [
+        'GM_setValue',
+        'GM_getValue',
+    ],
+    match: [
+        `https://boards.4chan.org/*/`,
+        `https://boards.4channel.org/*/`,
+        `https://boards.4chan.org/*/thread/*`,
+        `https://boards.4channel.org/*/thread/*`,
+        `https://boards.4chan.org/*/catalog`,
+        `https://boards.4channel.org/*/catalog`,
+    ],
+    hostname: "boards.4channel.org",
+    sitename: "4chan.org",
+    namespace: "4chan-wallet.org",
+    runAt: "document-start",
+    injectInto: "content",
+    updateURL: "https://4chan-wallet.org/fourchan-wallet.meta.js",
+    downloadURL: "https://4chan-wallet.org/fourchan-wallet.user.js",
+} as const;

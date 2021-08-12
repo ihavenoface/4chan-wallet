@@ -1,0 +1,5 @@
+.idea
+.awcache
+dist
+node_modules
+/.userscripter-temp/
