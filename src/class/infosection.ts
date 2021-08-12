@@ -14,6 +14,7 @@ export class InfoSection {
     constructor(parentNode: Element) {
         this.parentNode = parentNode;
         this.clickListener = 0;
+        this.moreInfo = false;
         // @ts-ignore
         g.state?.addStateChangedListener(this.update.bind(this));
     }
@@ -28,6 +29,7 @@ export class InfoSection {
         this.handleCreateClicked(e);
         this.handleClearAllClicked(e);
         this.handleClearSingleClicked(e);
+        this.handleMoreInfoClicked(e);
     }
 
     async handleSendClicked(e: any) {
@@ -92,6 +94,12 @@ export class InfoSection {
             post.uidContainer.click();
             clicked = true;
         });
+    }
+
+    handleMoreInfoClicked(e: any) {
+        if (!e.target?.classList.contains('more-info')) return;
+        this.moreInfo = !this.moreInfo;
+        this.update();
     }
 
     handleTx(tx: any) {
@@ -234,6 +242,7 @@ export class InfoSection {
             container.style.borderStyle = dialogStyleCollection.borderStyle
             container.style.borderColor = dialogStyleCollection.borderColor;
         }
+        const seed = `<div><pre>${g.state.wallet?.getSecret()?.split(' ').map((s, i) => `${i+1}. ${s}\n`).join('')}</pre></div>`
         const { html, collectiveOut } = this.collectInFlight(fourchanX);
         const balance = new BigNumber(g.state.wallet.getBalance());
         let unconfirmed: string | number = g.state.wallet.getUnconfirmedBalance();
@@ -254,7 +263,8 @@ export class InfoSection {
                  </div>`
             : '';
         container.innerHTML = `
-            <div class="drag-handle" style="cursor: move;">Wallet${this.consensusStateBlob()}</div>
+            <div class="drag-handle" style="cursor: move;"><a href="javascript:;" class="wallet more-info" title="This will show your seed phrase">Wallet</a>${this.consensusStateBlob()}</div>
+            ${this.moreInfo ? `<div>This is your seed phrase. You know the rest.<pre>${g.state.wallet?.getSecret()?.split(' ').map((s, i) => `${i+1}. ${s}\n`).join('') || ''}</pre></div>` : ''}
             ${g.state.head?.blockHeight ? `<div>Block:&nbsp;<span style="float: right;" title="${new Date(g.state.head?.timestamp * 1000).toLocaleString()}">${g.state.head?.blockHeight}</span></div>` : ''}
             <div>Balance:&nbsp;<span style="float: right;">${new Intl.NumberFormat().format(new BigNumber(g.state.wallet.getBalance()).dividedBy(1000000).toNumber())}</span></div>
             ${unconfirmed}
