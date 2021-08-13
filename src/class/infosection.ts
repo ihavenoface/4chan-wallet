@@ -263,7 +263,7 @@ export class InfoSection {
                  </div>`
             : '';
         container.innerHTML = `
-            <div class="drag-handle" style="cursor: move;"><a href="javascript:;" class="wallet more-info" title="This will show your seed phrase">Wallet</a>${this.consensusStateBlob()}</div>
+            <div class="drag-handle" style="cursor: move; touch-action: none; user-select: none;"><a href="javascript:;" class="wallet more-info" title="This will show your seed phrase">Wallet</a>${this.consensusStateBlob()}</div>
             ${this.moreInfo ? `<div>This is your seed phrase. You know the rest.<pre>${g.state.wallet?.getSecret()?.split(' ').map((s, i) => `${i+1}. ${s}\n`).join('') || ''}</pre></div>` : ''}
             ${g.state.head?.blockHeight ? `<div>Block:&nbsp;<span style="float: right;" title="${new Date(g.state.head?.timestamp * 1000).toLocaleString()}">${g.state.head?.blockHeight}</span></div>` : ''}
             <div>Balance:&nbsp;<span style="float: right;">${new Intl.NumberFormat().format(new BigNumber(g.state.wallet.getBalance()).dividedBy(1000000).toNumber())}</span></div>
