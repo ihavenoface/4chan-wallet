@@ -1,5 +1,4 @@
 // @ts-nocheck
-import posts from "~src/store/posts";
 import BigNumber from "bignumber.js";
 import g from "~src/store/env";
 import createPsbtTransaction from "~src/helpers/createPsbtTransaction";
@@ -9,14 +8,20 @@ import {BroadcastChannel} from 'broadcast-channel';
 export class InfoSection {
     public parentNode: Element;
     private node: Element | undefined | null;
+    private thread: Thread;
     private clickListener: number;
     public activeView: string = 'default';
-    constructor(parentNode: Element) {
+    constructor(parentNode: Element, thread: Thread) {
         this.parentNode = parentNode;
+        this.thread = thread;
         this.clickListener = 0;
         this.moreInfo = false;
         // @ts-ignore
         g.state?.addStateChangedListener(this.update.bind(this));
+    }
+
+    addThread(thread) {
+        this.thread = thread;
     }
 
     getNode() {
@@ -32,7 +37,7 @@ export class InfoSection {
         this.handleMoreInfoClicked(e);
     }
 
-    async handleSendClicked(e: any) {
+    handleSendClicked(e: any) {
         if (!e.target.classList.contains('send-transaction')) return;
         if (this.activeView !== 'pending') return;
         if (!g.pendingTransaction) return;
@@ -48,7 +53,7 @@ export class InfoSection {
         channel.close();
         // @ts-ignore
         this.node?.querySelector('.clear-pending-transaction').click();
-        [...posts.values()].filter(p => p.getTxQueue().gt(0))
+        [...this.thread.getPosts().values()].filter(p => p.getTxQueue().gt(0))
             .map(post => {
                 // @ts-ignore
                 post.node.querySelector('.clear-to-send')?.click();
@@ -62,7 +67,7 @@ export class InfoSection {
         if (!e.target?.classList.contains('create-transaction')) return;
         if (this.activeView !== 'default') return;
         this.activeView = 'pending';
-        const targets = [...posts.values()].filter(p => p.getTxQueue().gt(0))
+        const targets = [...this.thread.getPosts().values()].filter(p => p.getTxQueue().gt(0))
             .map(p => {return {address: p.address, value: p.getTxQueue().multipliedBy(1000000).toNumber()}});
         // @ts-ignore
         g.pendingTransaction = createPsbtTransaction(g.state.wallet, targets);
@@ -80,7 +85,7 @@ export class InfoSection {
     handleClearSingleClicked(e: any) {
         if (!e.target?.classList.contains('clear-single-transaction')) return;
         if (this.activeView !== 'default') return;
-        const [post] = [...posts.values()].filter(p => p.postId === e.target.dataset.postid);
+        const [post] = [...this.thread.getPosts().values()].filter(p => p.postId === e.target.dataset.postid);
         // @ts-ignore
         post.node.querySelector('.clear-to-send')?.click()
     }
@@ -88,7 +93,7 @@ export class InfoSection {
     handleHandClicked(e: any) {
         if (!e.target?.classList.contains('hand')) return;
         let clicked: boolean = false;
-        posts.forEach(post => {
+        this.thread.getPosts().forEach(post => {
             if (clicked) return;
             if (e.target.textContent !== post.uidContainer.textContent) return;
             post.uidContainer.click();
@@ -139,7 +144,8 @@ export class InfoSection {
     }
 
     collectInFlight(fourchanX: boolean) {
-        const inFlight = [...posts.values()].filter(post => post.getTxQueue().gt(new BigNumber(0)));
+        if (!this.thread) return { html: '', collectiveOut: new BigNumber(0) };
+        const inFlight = [...this.thread.getPosts().values()].filter(post => post.getTxQueue().gt(new BigNumber(0)));
         if (!inFlight.length) return { html: '', collectiveOut: new BigNumber(0) };
         const hr = document.querySelector('hr');
         const hrStyleCollection = fourchanX && hr ? getComputedStyle(hr) : {
@@ -242,7 +248,6 @@ export class InfoSection {
             container.style.borderStyle = dialogStyleCollection.borderStyle
             container.style.borderColor = dialogStyleCollection.borderColor;
         }
-        const seed = `<div><pre>${g.state.wallet?.getSecret()?.split(' ').map((s, i) => `${i+1}. ${s}\n`).join('')}</pre></div>`
         const { html, collectiveOut } = this.collectInFlight(fourchanX);
         const balance = new BigNumber(g.state.wallet.getBalance());
         let unconfirmed: string | number = g.state.wallet.getUnconfirmedBalance();

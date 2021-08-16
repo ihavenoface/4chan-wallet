@@ -80,7 +80,7 @@ export class State {
         await hd.fromJson(GM_getValue('wallet', "{}"), hd);
     }
 
-    handleMessage = async (message: Message) => {
+    handleMessage = async (message: Message) => { // todo in general we should defer actions on inactive tabs, and update once we become active again
         const { type, data } = message;
         switch (type) {
             case 'move':
@@ -120,6 +120,12 @@ export class State {
         switch (type) {
             case 'get':
                 switch (data) {
+                    case 'is_there_a_leader':
+                        this.channel.postMessage({
+                            type: 'there_is_a_leader',
+                            data: true,
+                        })
+                        break;
                     case 'wallet':
                         this.channel.postMessage({
                             type: 'wallet',
@@ -147,6 +153,7 @@ export class State {
                 }
                 break;
             case 'get_multi':
+                // todo do not split this
                 data.forEach((data: Message) => this.handleMessage({type: 'get', data}));
                 break;
             case 'broadcast_tx':
@@ -156,19 +163,24 @@ export class State {
                 this.walletWS.addTransactionListener(this.client);
                 break;
             case 'subscribe_address':
-                if (this.watchOnlyWalletsWS.has(data)) {
-                    this.handleWatchOnlyWalletUpdated(this.watchOnlyWalletsWS.get(data));
-                    break;
-                }
-                const wallet = new WatchOnlyWalletWS();
-                wallet.setSecret(data);
-                this.watchOnlyWalletsWS.set(data, wallet);
-                wallet.registerCallBack(data, this.handleWatchOnlyWalletUpdated); // todo update this
-                // @ts-ignore
-                wallet.addTransactionListener(this.client);
-                wallet.fetchBalance();
+                // always pass in array
+                data.forEach(this.handleSubRequested);
                 break;
         }
+    }
+
+    handleSubRequested = async (data: string) => {
+        if (this.watchOnlyWalletsWS.has(data)) {
+            this.handleWatchOnlyWalletUpdated(this.watchOnlyWalletsWS.get(data));
+            return;
+        }
+        const wallet = new WatchOnlyWalletWS();
+        wallet.setSecret(data);
+        this.watchOnlyWalletsWS.set(data, wallet);
+        wallet.registerCallBack(data, this.handleWatchOnlyWalletUpdated); // todo update this
+        // @ts-ignore
+        wallet.addTransactionListener(this.client);
+        wallet.fetchBalance();
     }
 
     handleLeadership = async () => {
@@ -201,6 +213,29 @@ export class State {
         //this.notifyStateChanged();
         this.walletWS.handleTransactions();
         this.watchOnlyWalletsWS.forEach(wallet => wallet.handleTransactions());
+    }
+
+    isThereALeaderActive = async () => {
+        return new Promise<void>(resolve => {
+            if (this.elector.isLeader) {
+                resolve();
+                return;
+            }
+            const channel = new BroadcastChannel('supersecrittobechangedlater');
+            channel.addEventListener('message', message => {
+                if (message.type === 'there_is_a_leader' && message.data === true) {
+                    channel.close();
+                    clearInterval(to);
+                    resolve();
+                }
+            });
+            const to = setInterval(() => {
+                channel.postMessage({
+                    type: 'get',
+                    data: 'is_there_a_leader',
+                });
+            }, 10);
+        });
     }
 
     handleWalletUpdated = (old: HDSegwitBech32WalletWS) => {

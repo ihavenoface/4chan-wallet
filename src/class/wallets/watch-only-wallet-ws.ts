@@ -28,6 +28,8 @@ export class WatchOnlyWalletWS extends WatchOnlyWallet {
     }
 
     addTransactionListener(client: BlueElectrumClient) {
+        // todo this can probably be dropped given that we, as a single address don't really care about the connection state
+        //      then again having the debounce in place is kinda nice
         client?.addTransactionListener(this.handleTransactions.bind(this), [this.getAddress()]);
     }
 

@@ -69,7 +69,7 @@ export class HDSegwitBech32WalletWS extends HDSegwitBech32Wallet {
             //this.addTransactionListener();
             if (tx === 'false') return;
             this.notifyWalletChanged();
-        }, 10000); // arbitrary time limit for queue break. this should be improved upon at some point
+        }, 10000); // todo arbitrary time limit for queue break. this should be improved upon at some point
     }
 
     async fetchTransactions(UI=false) {

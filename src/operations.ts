@@ -8,76 +8,28 @@ import {InfoSection} from "~src/class/infosection";
 import BigNumber from "bignumber.js";
 import g from "~src/store/env";
 import {State} from "~src/class/broadcast-ws";
+import Thread from "~src/class/thread";
 
+let thread: Thread;
 // @ts-ignore
 g.state = new State();
 // @ts-ignore
-g.infoSection = new InfoSection(document.body);
+g.infoSection = new InfoSection(document.body, thread);
 const untouchedNodesByUid = new Map<string, Set<Element>>();
 
-let reqInterval: any = undefined;
-const ch = new BroadcastChannel('supersecrittobechangedlater');
-// adding an interval here might not be the worst idea
-// maybe add something like *is wallet initialising to preserve performance
-reqInterval = setInterval(() => {
+const something = async () => {
     // todo connection is never guaranteed. in case of a network failure, this poll creates unneeded overhead
     // todo additionally, on single tab setups we just spam ourselves constantly, which is kinda bad
     // @ts-ignore
-    if (!g.state.elector.isLeader && (!g.state.head.blockHeight || g.state.consensusState === 'not connected')) {
-        ch.postMessage({type: 'get_multi', data: ['head', 'consensus', 'transform_info_section']});
-    } else {
-        clearInterval(reqInterval);
-        ch.close();
-    }
-}, 15);
+    await g.state.isThereALeaderActive();
+    const ch = new BroadcastChannel('supersecrittobechangedlater');
+    ch.postMessage({type: 'get_multi', data: ['head', 'consensus', 'transform_info_section']});
+    ch.close();
+}
+something();
 
 function encryptAddress(address: string) {
     return address.split(/\w+1/)[1].split('').reverse().join('');
-}
-
-const maybeAddAsSibling = (post: Post, node: Element) => {
-    const isSiblingPost = post.maybeAddSibling(node);
-    if (post.uid && isSiblingPost) {
-        untouchedNodesByUid.get(post.uid)?.delete(node);
-    }
-}
-
-const filterPosts = (postContainers: NodeListOf<Element> | Array<Element>) => {
-    // todo we need an inlined handler
-    // todo check if we care about deleted nodes
-    postContainers.forEach((node: Element) => {
-        if (posts.has(Post.getPostId(node))) return;
-        const post = new Post(node, postContainers);
-        if (post.address) {
-            posts.set(post.postId, post);
-        } else if (post.uid) {
-            untouchedNodesByUid.set(post.uid, new Set());
-            untouchedNodesByUid.get(post.uid)?.add(node);
-        }
-    });
-
-    posts.forEach(post => {
-        postContainers.forEach((node: Element) => {
-            maybeAddAsSibling(post, node);
-        });
-        post.uid && untouchedNodesByUid.get(post.uid)?.forEach((node) => {
-            maybeAddAsSibling(post, node);
-        });
-    });
-}
-
-const updateBalancesOnDOM = (post: Post) => {
-    // todo batch this as we can't end up spamming 500 postmessages on big threads
-    post.insertHtml();
-    post.poll();
-    post.siblings.forEach(p => {
-        p.insertHtml();
-        p.poll();
-    });
-}
-
-const fug = async () => {
-    posts.forEach(updateBalancesOnDOM);
 }
 
 const updateNativeQuickReply = async (node: any=document.querySelector('#quickReply')) => {
@@ -127,11 +79,12 @@ const OPERATIONS: ReadonlyArray<Operation<any>> = [
     operation({
         description: 'add dialog',
         condition: ALWAYS,
-        dependencies: { body: 'body' },
-        // deferUntil: ALWAYS,
+        dependencies: { body: 'body', board: '.board' },
+        // deferUntil: ALWAYS, // seems to be fine to drop this
         action: e => {
+            const { body, board } = e;
             // @ts-ignore
-            g.infoSection.insert(e.body);
+            g.infoSection.insert(body);
             const channel = new BroadcastChannel('supersecrittobechangedlater');
             interact('.wallet.info').draggable({
                 allowFrom: '.drag-handle',
@@ -158,6 +111,32 @@ const OPERATIONS: ReadonlyArray<Operation<any>> = [
                 ]
             })
                 .styleCursor(false);
+            /*
+                .on('down', e => {
+                    e.preventDefault();
+                    board.style.userSelect = board.style.pointerEvents = 'none';
+                })
+                .on('up', e => {
+                    e.preventDefault();
+                    board.style.userSelect = board.style.pointerEvents = 'unset';
+                })
+                .on('cancel', e => {
+                    e.preventDefault();
+                    board.style.userSelect = board.style.pointerEvents = 'unset';
+                })
+                */
+                /*
+            body.addEventListener('mouseenter', e => {
+                //console.log(e);
+            });
+            ['mouseleave', 'mouseup'].forEach(evType => {
+                body.addEventListener(evType, e => {
+                    e.preventDefault();
+                    board.style.userSelect = board.style.pointerEvents = 'unset';
+                });
+            });*/
+            // todo all of this is a bit wonky, still
+            //      adding the styles locally instead of globally might help
         },
     }),
     operation({
@@ -248,10 +227,11 @@ const OPERATIONS: ReadonlyArray<Operation<any>> = [
         condition: ALWAYS,
         dependencies: { thread: '.thread' },
         action: e => {
-            filterPosts(e.thread.querySelectorAll('.postContainer'));
-            fug();
+            thread = new Thread(e.thread as HTMLDivElement);
             // @ts-ignore
-            g.state.infoSection?.update();
+            g.infoSection.addThread(thread);
+            console.time();
+            thread.processNodes();
         },
     }),
     operation({
@@ -267,12 +247,13 @@ const OPERATIONS: ReadonlyArray<Operation<any>> = [
                         const postContainers = Array.prototype.filter.call(mutation.addedNodes, (el: any) => {
                             return el?.nodeName === "DIV" && el.classList.contains("postContainer");
                         });
-                        filterPosts(postContainers);
-                        fug();
-                        // @ts-ignore
-                        g.state.infoSection?.update();
+                        if (!postContainers[0]) return; // todo be more concise. important part: "postcontainer" filter
+                        // todo doesn't take into account siblings?
+                        thread.processNodes(postContainers);
+                        return;
                     }
                     mutation.removedNodes?.forEach((node: Element) => {
+                        // todo fix this for Thread
                         if (node?.nodeName !== "DIV") return;
                         let postIdsSelector = [...posts.keys()].map(s=>`#${s}`);
                         if (!postIdsSelector.length) return;
@@ -287,58 +268,6 @@ const OPERATIONS: ReadonlyArray<Operation<any>> = [
             observer.observe(e.thread, config);
         }
     }),
-    operation({
-        description: "listen to user interaction",
-        condition: ALWAYS,
-        dependencies: { thread: '.thread' },
-        action: e => {
-            e.thread.addEventListener('click', (e: any) => {
-                if (!e.target.classList.contains("wallet")) return;
-                // @ts-ignore
-                if (g.infoSection?.activeView !== "default") return;
-                e.composedPath().forEach((el: any) => {
-                    posts.forEach(async (post) => {
-                        //post.updateTxQueue(new BigNumber(10)); // todo this is fun. it allows multisending
-                        //post.siblings.forEach(post => post.updateTxQueue(new BigNumber(10)));
-                        //updateBalancesOnDOM(post);
-                        let ids: Set<string> = new Set();
-                        ids.add(post.postId);
-                        post.siblings.forEach(x => ids.add(x.postId));
-                        if (!el?.id) return
-                        if (!ids.has(el.id)) return;
-                        post = post.leader || post;
-                        if (e.target.classList.contains('clear-to-send')) {
-                            post.updateTxQueue(new BigNumber(0), true);
-                            post.siblings.forEach(post => post.updateTxQueue(new BigNumber(0), true));
-                            updateBalancesOnDOM(post);
-                            // @ts-ignore
-                            g.infoSection?.update();
-                            return;
-                        }
-                        const san = post.getWalletNode().querySelector(`.send-quick-options .${[...e.target.classList].join('.')}`);
-                        if (!san) return;
-                        // @ts-ignore
-                        g.infoSection?.update();
-                        // @ts-ignore
-                        let toUpdate = new BigNumber(Number(san.dataset.amount));
-                        if (e.ctrlKey) {
-                            toUpdate = toUpdate.negated();
-                        }
-                        if (e.shiftKey) {
-                            toUpdate = toUpdate.multipliedBy(10);
-                        }
-                        // @ts-ignore
-                        if (collectInFlight().plus(toUpdate).plus(100).multipliedBy(1000000).gte(new BigNumber(g.state?.wallet.getBalance()))) return; // fixme fee is a bit dumb here
-                        post.updateTxQueue(toUpdate);
-                        post.siblings.forEach(post => post.updateTxQueue(toUpdate)); // todo, this is bad practice. it should be assigned to sibling
-                        updateBalancesOnDOM(post);
-                        // @ts-ignore
-                        g.infoSection?.update();
-                    })
-                });
-            });
-        }
-    })
 ];
 
 export default OPERATIONS;
