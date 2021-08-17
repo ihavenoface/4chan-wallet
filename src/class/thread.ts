@@ -21,6 +21,10 @@ export default class Thread {
         this.postSiblingPairs = new Map();
         this.node.addEventListener('click', this.handleThreadClicked);
         // todo listen to state change or handle that in ops and pass it down
+        // @ts-ignore
+        g.state?.addStateChangedListener((state) => {
+            state.watchOnlyWallets
+        });
     }
 /*
     handleStateChanged = (state: any) => {
@@ -44,6 +48,7 @@ export default class Thread {
         const postIdNumber = Number(e.target.parentNode.dataset.postid);
         const post = this.posts.get(postIdNumber);
         if (!post) return;
+        e.preventDefault();
         if (e.target.classList.contains('clear-to-send')) {
             post.updateTxQueue(new BigNumber(0), true);
             post.siblings.forEach(post => post.updateTxQueue(new BigNumber(0), true));
@@ -123,7 +128,7 @@ export default class Thread {
         const channel = new BroadcastChannel("supersecrittobechangedlater");
         channel.postMessage({
             type: 'subscribe_address',
-            data: [...this.posts.values()].map(p => p.address),
+            data: [...new Set([...this.posts.values()].map(p => p.address))],
         });
         channel.close();
     }

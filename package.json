@@ -3,7 +3,9 @@
   "scripts": {
     "build-webpack-config": "tsc -p tsconfig.webpack.json",
     "build-userscript": "webpack --config .userscripter-temp/webpack.config.js",
+    "watch-userscript": "webpack --config .userscripter-temp/webpack.config.js --watch",
     "build": "npm run clean && npm run build-webpack-config && npm run build-userscript && npm run clean",
+    "watch": "npm run clean && npm run build-webpack-config && npm run watch-userscript && npm run clean",
     "clean": "rimraf .userscripter-temp"
   },
   "dependencies": {

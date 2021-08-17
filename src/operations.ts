@@ -5,7 +5,6 @@ import {Post} from "~src/class/post";
 import posts from "~src/store/posts";
 import interact from "interactjs";
 import {InfoSection} from "~src/class/infosection";
-import BigNumber from "bignumber.js";
 import g from "~src/store/env";
 import {State} from "~src/class/broadcast-ws";
 import Thread from "~src/class/thread";
@@ -15,9 +14,8 @@ let thread: Thread;
 g.state = new State();
 // @ts-ignore
 g.infoSection = new InfoSection(document.body, thread);
-const untouchedNodesByUid = new Map<string, Set<Element>>();
 
-const something = async () => {
+(async () => {
     // todo connection is never guaranteed. in case of a network failure, this poll creates unneeded overhead
     // todo additionally, on single tab setups we just spam ourselves constantly, which is kinda bad
     // @ts-ignore
@@ -25,8 +23,7 @@ const something = async () => {
     const ch = new BroadcastChannel('supersecrittobechangedlater');
     ch.postMessage({type: 'get_multi', data: ['head', 'consensus', 'transform_info_section']});
     ch.close();
-}
-something();
+})()
 
 function encryptAddress(address: string) {
     return address.split(/\w+1/)[1].split('').reverse().join('');
@@ -63,17 +60,6 @@ const updateNativeQuickReply = async (node: any=document.querySelector('#quickRe
 
 // @ts-ignore
 g.state?.addStateChangedListener(updateNativeQuickReply);
-
-const collectInFlight = () => {
-    // todo: lift this up
-    const inFlight = [...posts.values()].filter(post => post.getTxQueue().gt(new BigNumber(0)));
-    let collectiveOut = new BigNumber(0);
-    inFlight.forEach((post) => {
-        collectiveOut = collectiveOut.plus(post.getTxQueue());
-    });
-    return collectiveOut;
-}
-
 
 const OPERATIONS: ReadonlyArray<Operation<any>> = [
     operation({

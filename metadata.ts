@@ -5,7 +5,7 @@ import {
 
 import U from "./src/userscript";
 
-export default function(_: BuildConfig): Metadata {
+export default function(_: BuildConfig): any { // todo validate properly
     return {
         name: U.name,
         version: U.version,

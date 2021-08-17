@@ -54,7 +54,7 @@ export class InfoSection {
         // @ts-ignore
         this.node?.querySelector('.clear-pending-transaction').click();
         [...this.thread.getPosts().values()].filter(p => p.getTxQueue().gt(0))
-            .map(post => {
+            .forEach(post => {
                 // @ts-ignore
                 post.node.querySelector('.clear-to-send')?.click();
             });
@@ -85,20 +85,16 @@ export class InfoSection {
     handleClearSingleClicked(e: any) {
         if (!e.target?.classList.contains('clear-single-transaction')) return;
         if (this.activeView !== 'default') return;
-        const [post] = [...this.thread.getPosts().values()].filter(p => p.postId === e.target.dataset.postid);
-        // @ts-ignore
-        post.node.querySelector('.clear-to-send')?.click()
+        const {node} = [...this.thread.getPosts().values()]
+            .find(p => p.postId === e.target.dataset.postid);
+        node.querySelector('.clear-to-send')?.click()
     }
 
     handleHandClicked(e: any) {
         if (!e.target?.classList.contains('hand')) return;
-        let clicked: boolean = false;
-        this.thread.getPosts().forEach(post => {
-            if (clicked) return;
-            if (e.target.textContent !== post.uidContainer.textContent) return;
-            post.uidContainer.click();
-            clicked = true;
-        });
+        const {uidContainer} = [...this.thread.getPosts().values()]
+            .find(p => p.uid === e.target.textContent);
+        uidContainer.click();
     }
 
     handleMoreInfoClicked(e: any) {

@@ -4,6 +4,7 @@ import {BlueElectrumClient, PlainTransaction} from "@nimiq/electrum-client";
 export class WatchOnlyWalletWS extends WatchOnlyWallet {
     private callbacks: Map<string, Function>;
     private debounce: { transactions: number, balance: number };
+    private transactionListener: number;
     constructor() {
         super();
         this.callbacks = new Map();
@@ -11,6 +12,7 @@ export class WatchOnlyWalletWS extends WatchOnlyWallet {
             transactions: 0,
             balance: 0,
         };
+        this.transactionListener = 0;
     }
 
     prepareForSerialization() {
@@ -31,6 +33,10 @@ export class WatchOnlyWalletWS extends WatchOnlyWallet {
         // todo this can probably be dropped given that we, as a single address don't really care about the connection state
         //      then again having the debounce in place is kinda nice
         client?.addTransactionListener(this.handleTransactions.bind(this), [this.getAddress()]);
+    }
+
+    removeTransactionListener(client: BlueElectrumClient) {
+        client?.removeListener(this.transactionListener);
     }
 
     handleTransactions(tx?: PlainTransaction) {

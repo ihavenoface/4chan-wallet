@@ -68,6 +68,7 @@ export class State {
             this.fromJson(this.wallet);
             getOrGenerateSeed(this.wallet);
         }
+        window.addEventListener('beforeunload', this.handleUnload);
     }
 
     async hasWallet() {
@@ -80,8 +81,9 @@ export class State {
         await hd.fromJson(GM_getValue('wallet', "{}"), hd);
     }
 
-    handleMessage = async (message: Message) => { // todo in general we should defer actions on inactive tabs, and update once we become active again
+    handleMessage = async (message: Message, dupe?: boolean) => { // todo in general we should defer actions on inactive tabs, and update once we become active again
         const { type, data } = message;
+        if (type !== 'get' && (this.elector.isLeader && !dupe)) return;
         switch (type) {
             case 'move':
                 if (this.transformInfoSection === data) return;
@@ -97,7 +99,6 @@ export class State {
                 }
                 break;
             case 'wallet':
-                this.handleWalletChanged(data);
                 break;
             case 'watch-only-wallet':
                 const wallet = new WatchOnlyWallet();
@@ -163,13 +164,15 @@ export class State {
                 this.walletWS.addTransactionListener(this.client);
                 break;
             case 'subscribe_address':
-                // always pass in array
                 data.forEach(this.handleSubRequested);
+                break;
+            case 'unsubscribe_address':
+                data.forEach(this.handleUnsubRequest);
                 break;
         }
     }
 
-    handleSubRequested = async (data: string) => {
+    handleSubRequested = (data: string) => {
         if (this.watchOnlyWalletsWS.has(data)) {
             this.handleWatchOnlyWalletUpdated(this.watchOnlyWalletsWS.get(data));
             return;
@@ -183,12 +186,22 @@ export class State {
         wallet.fetchBalance();
     }
 
+    handleUnsubRequest = (data: string) => {
+        /* todo enable this
+        if (!this.watchOnlyWalletsWS.has(data)) return;
+        const wallet = this.watchOnlyWalletsWS.get(data);
+        if (!wallet) return;
+        wallet.removeTransactionListener(this.client as BlueElectrumClient);
+        this.handleWatchOnlyWalletUpdated(wallet);
+         */
+    }
+
     handleLeadership = async () => {
         this.walletWS.addWalletChangedListener(this.handleWalletUpdated);
         // @ts-ignore
-        this.alt = new BroadcastChannel('supersecrittobechangedlater');
+        this.alt = new BroadcastChannel('supersecrittobechangedlater'); // todo this is quite bad
         // @ts-ignore
-        this.alt.addEventListener('message', this.handleMessage);
+        this.alt.addEventListener('message', (m) => this.handleMessage(m, true));
         this.fromJson(this.walletWS);
         getOrGenerateSeed(this.walletWS);
         try {
@@ -300,6 +313,18 @@ export class State {
 
     public removeListener(handle: number): void {
         this.stateChangedListeners.delete(handle);
+    }
+
+    handleUnload = (e: BeforeUnloadEvent) => {
+        /* keep this for later
+        if (!this.elector.isLeader) {
+            this.channel.postMessage({
+                type: 'unsubscribe_address',
+                data: [...new Set([...this.watchOnlyWallets.values()].map(w => w.getSecret()))],
+            });
+        }
+        */
+        this.elector.die();
     }
 
     attemptToBootstrapFromPeer() {
