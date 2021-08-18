@@ -63,7 +63,7 @@ export class InfoSection {
         this.update();
     }
 
-    handleCreateClicked(e: any) {
+    handleCreateClicked(e: any) { // todo broadcast after creating, so that we can cache resolved addresses
         if (!e.target?.classList.contains('create-transaction')) return;
         if (this.activeView !== 'default') return;
         this.activeView = 'pending';

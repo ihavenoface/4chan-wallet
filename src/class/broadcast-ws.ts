@@ -178,15 +178,20 @@ export class State {
             return;
         }
         // @ts-ignore
-        const cache = await GM_getValue('watch-only-wallets', {})[data];
         const wallet = new WatchOnlyWalletWS();
         wallet.setSecret(data);
-        wallet.fromObject(cache, wallet);
-        this.watchOnlyWalletsWS.set(data, wallet);
-        this.handleWatchOnlyWalletUpdated(wallet);
+        // @ts-ignore
+        /* fixme order here seems kinda broken
+        const cache = await GM_getValue('watch-only-wallets', {})[data];
+        if (cache.secret) {
+            wallet.fromObject(cache, wallet);
+            this.watchOnlyWalletsWS.set(data, wallet);
+            this.handleWatchOnlyWalletUpdated(wallet);
+        }*/
         wallet.registerCallBack(data, this.handleWatchOnlyWalletUpdated); // todo update this
         // @ts-ignore
         wallet.addTransactionListener(this.client);
+        await this.client?.waitForConsensusEstablished();
         wallet.fetchBalance();
     }
 
