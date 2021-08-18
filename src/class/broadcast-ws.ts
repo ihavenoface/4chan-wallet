@@ -172,14 +172,18 @@ export class State {
         }
     }
 
-    handleSubRequested = (data: string) => {
+    handleSubRequested = async (data: string) => {
         if (this.watchOnlyWalletsWS.has(data)) {
             this.handleWatchOnlyWalletUpdated(this.watchOnlyWalletsWS.get(data));
             return;
         }
+        // @ts-ignore
+        const cache = await GM_getValue('watch-only-wallets', {})[data];
         const wallet = new WatchOnlyWalletWS();
         wallet.setSecret(data);
+        wallet.fromObject(cache, wallet);
         this.watchOnlyWalletsWS.set(data, wallet);
+        this.handleWatchOnlyWalletUpdated(wallet);
         wallet.registerCallBack(data, this.handleWatchOnlyWalletUpdated); // todo update this
         // @ts-ignore
         wallet.addTransactionListener(this.client);

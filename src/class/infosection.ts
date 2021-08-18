@@ -193,7 +193,7 @@ export class InfoSection {
               </td>
               <td style="${hrStyle};">
                 <span style="float: right;">
-                  ${new Intl.NumberFormat().format(collectiveOut.toNumber())}
+                  ${new Intl.NumberFormat().format(collectiveOut.multipliedBy(1000000).plus(g.pendingTransaction?.fee || 0).dividedBy(1000000).toNumber())}
                 </span>
               </td>
             </tr>
