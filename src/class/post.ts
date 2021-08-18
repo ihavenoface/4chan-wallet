@@ -76,8 +76,9 @@ export class Post {
             return false;
         }
         [title] = title.split('.');
-        if (title.length > 150) {
-            console.log(`Title length of ${title} too long. Skipping.`)
+        if (title.length !== 39) {
+            // just logging here since this is error prone
+            console.log(`Title length of ${title} does not match 39. Skipping.`)
             return false;
         }
         title = title.replace(/-/g, '/');

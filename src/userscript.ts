@@ -1,7 +1,7 @@
 export default {
     id: "fourchan-wallet",
     name: "4chan Wallet",
-    version: "0.1.0",
+    version: "0.1.1",
     description: "A crypto wallet for 4chan.",
     author: "noface",
     grant: [
